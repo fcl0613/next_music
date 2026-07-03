@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { formatDuration } from '@/lib/utils'
+import { usePlayerStore, type MusicItem } from '@/lib/store/player-store'
 
 interface Collection {
   id: number
@@ -12,18 +13,7 @@ interface Collection {
   count: number
 }
 
-interface MusicItem {
-  id: number
-  bvid: string
-  pageIndex: number
-  pageName: string | null
-  title: string
-  artist: string | null
-  coverUrl: string | null
-  duration: number
-  status: string
-  createdAt: string
-}
+// MusicItem 类型从 store 导入
 
 export default function HomePage() {
   return (
@@ -48,6 +38,23 @@ function HomePageContent() {
   const [loadingCollections, setLoadingCollections] = useState(true)
   const [loadingMusic, setLoadingMusic] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+
+  // 播放器状态
+  const { currentMusic, isPlaying, play } = usePlayerStore()
+
+  // 播放指定音乐
+  const handlePlayMusic = useCallback(
+    (music: MusicItem) => {
+      play(music, musicList)
+    },
+    [play, musicList]
+  )
+
+  // 播放全部
+  const handlePlayAll = useCallback(() => {
+    if (musicList.length === 0) return
+    play(musicList[0], musicList)
+  }, [play, musicList])
   // 加载歌单列表
   useEffect(() => {
     fetch('/api/collections')
@@ -199,6 +206,7 @@ function HomePageContent() {
           <div className="flex items-center gap-2">
             {/* 播放全部按钮 */}
             <button
+              onClick={handlePlayAll}
               disabled={musicList.length === 0}
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
@@ -274,13 +282,26 @@ function HomePageContent() {
                 <span className="w-32">艺术家</span>
                 <span className="w-20 text-right">时长</span>
               </div>
-              {musicList.map((music, index) => (
+              {musicList.map((music, index) => {
+                const isActive = currentMusic?.id === music.id
+                return (
                 <div
                   key={music.id}
-                  className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer"
+                  onClick={() => handlePlayMusic(music)}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-gray-50 transition-colors group cursor-pointer ${
+                    isActive ? 'bg-gray-50' : ''
+                  }`}
                 >
-                  <span className="w-8 text-center text-sm text-gray-400 group-hover:hidden">
-                    {index + 1}
+                  <span className={`w-8 text-center text-sm group-hover:hidden ${isActive ? 'text-[#fe2c55] font-medium' : 'text-gray-400'}`}>
+                    {isActive && isPlaying ? (
+                      <span className="inline-flex gap-0.5 items-end h-4">
+                        <span className="w-0.5 bg-[#fe2c55] animate-pulse" style={{ height: '60%', animationDelay: '0ms' }} />
+                        <span className="w-0.5 bg-[#fe2c55] animate-pulse" style={{ height: '100%', animationDelay: '150ms' }} />
+                        <span className="w-0.5 bg-[#fe2c55] animate-pulse" style={{ height: '40%', animationDelay: '300ms' }} />
+                      </span>
+                    ) : (
+                      index + 1
+                    )}
                   </span>
                   <svg className="w-8 h-8 text-gray-900 hidden group-hover:block" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
@@ -302,7 +323,7 @@ function HomePageContent() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className={`text-sm font-medium truncate ${isActive ? 'text-[#fe2c55]' : 'text-gray-900'}`}>
                         {music.pageName || music.title}
                       </p>
                       {music.pageName && (
@@ -317,14 +338,18 @@ function HomePageContent() {
                     {formatDuration(music.duration)}
                   </span>
                 </div>
-              ))}
+              )
+              })}
             </div>
           ) : (
             /* 网格视图 */
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {musicList.map((music) => (
+              {musicList.map((music) => {
+                const isActive = currentMusic?.id === music.id
+                return (
                 <div
                   key={music.id}
+                  onClick={() => handlePlayMusic(music)}
                   className="group cursor-pointer"
                 >
                   <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2 relative">
@@ -352,14 +377,15 @@ function HomePageContent() {
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className={`text-sm font-medium truncate ${isActive ? 'text-[#fe2c55]' : 'text-gray-900'}`}>
                     {music.pageName || music.title}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {music.artist || music.bvid}
                   </p>
                 </div>
-              ))}
+              )
+              })}
             </div>
           )}
         </div>
