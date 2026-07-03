@@ -7,6 +7,7 @@ import { useState } from 'react'
 const navItems = [
   { href: '/', label: '音乐库' },
   { href: '/collect', label: '收录' },
+  { href: '/collections', label: '歌单' },
   { href: '/settings', label: '设置' },
 ]
 
