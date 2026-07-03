@@ -1,15 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { formatDuration } from '@/lib/utils'
 
-// 模拟歌单数据
-const mockCollections = [
-  { id: 1, name: '我喜欢的音乐', isDefault: true },
-  { id: 2, name: '工作学习', isDefault: false },
-  { id: 3, name: '运动健身', isDefault: false },
-]
-
-// 模拟分P数据
+// 类型定义
 interface VideoPage {
   cid: number
   page: number
@@ -28,20 +22,46 @@ interface VideoPreview {
 
 interface CollectResult {
   bvid: string
+  pageIndex: number
   success: boolean
   title?: string
   reason?: string
 }
 
+interface CollectionOption {
+  id: number
+  name: string
+  isDefault: boolean
+  count: number
+}
+
 export default function CollectPage() {
   const [inputValue, setInputValue] = useState('')
-  const [selectedCollection, setSelectedCollection] = useState<number>(1)
+  const [selectedCollection, setSelectedCollection] = useState<number>(0)
   const [selectedPages, setSelectedPages] = useState<Record<string, number[]>>({})
   const [previews, setPreviews] = useState<VideoPreview[]>([])
   const [isParsing, setIsParsing] = useState(false)
   const [isCollecting, setIsCollecting] = useState(false)
   const [results, setResults] = useState<CollectResult[]>([])
   const [showResults, setShowResults] = useState(false)
+  const [collections, setCollections] = useState<CollectionOption[]>([])
+  const [parseErrors, setParseErrors] = useState<Record<string, string>>({})
+
+  // 加载歌单列表
+  useEffect(() => {
+    fetch('/api/collections')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.collections) {
+          setCollections(data.collections)
+          // 默认选中默认歌单
+          const defaultCol = data.collections.find((c: CollectionOption) => c.isDefault)
+          if (defaultCol) setSelectedCollection(defaultCol.id)
+          else if (data.collections.length > 0) setSelectedCollection(data.collections[0].id)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // 解析预览
   const handleParse = async () => {
@@ -54,33 +74,58 @@ export default function CollectPage() {
     setIsParsing(true)
     setShowResults(false)
     setResults([])
+    setParseErrors({})
 
-    // 模拟解析
-    await new Promise((r) => setTimeout(r, 1000))
+    try {
+      const res = await fetch('/api/collect/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bvids }),
+      })
+      const data = await res.json()
 
-    const mockPreviews: VideoPreview[] = bvids.map((bvid, i) => ({
-      bvid,
-      title: `【音乐视频】示例标题 ${i + 1}`,
-      cover: '',
-      artist: `UP主_${i + 1}`,
-      duration: 180 + i * 30,
-      pages: [
-        { cid: 1000 + i, page: 1, part: '默认分P', duration: 180 + i * 30 },
-      ],
-    }))
+      if (!res.ok) {
+        alert(data.error || '解析请求失败')
+        setIsParsing(false)
+        return
+      }
 
-    setPreviews(mockPreviews)
-    // 默认选中所有分P
-    const defaultSelected: Record<string, number[]> = {}
-    mockPreviews.forEach((p) => {
-      defaultSelected[p.bvid] = p.pages.map((pg) => pg.page)
-    })
-    setSelectedPages(defaultSelected)
+      const successPreviews: VideoPreview[] = []
+      const errors: Record<string, string> = {}
+
+      for (const r of data.results) {
+        if (r.success && r.data) {
+          successPreviews.push({
+            bvid: r.data.bvid,
+            title: r.data.title,
+            cover: r.data.cover,
+            artist: r.data.artist,
+            duration: r.data.duration,
+            pages: r.data.pages,
+          })
+        } else {
+          errors[r.bvid] = r.error || '解析失败'
+        }
+      }
+
+      setPreviews(successPreviews)
+      setParseErrors(errors)
+
+      // 默认选中所有分P
+      const defaultSelected: Record<string, number[]> = {}
+      successPreviews.forEach((p) => {
+        defaultSelected[p.bvid] = p.pages.map((pg) => pg.page)
+      })
+      setSelectedPages(defaultSelected)
+    } catch {
+      alert('网络错误，请稍后重试')
+    }
+
     setIsParsing(false)
   }
 
   // 切换分P选中
-  const togglePage = (bvid: string, page: number) => {
+  const togglePage = useCallback((bvid: string, page: number) => {
     setSelectedPages((prev) => {
       const current = prev[bvid] || []
       const next = current.includes(page)
@@ -88,41 +133,65 @@ export default function CollectPage() {
         : [...current, page]
       return { ...prev, [bvid]: next }
     })
-  }
+  }, [])
 
   // 收录
   const handleCollect = async () => {
+    if (!selectedCollection) {
+      alert('请选择歌单')
+      return
+    }
+
+    const items = previews
+      .map((p) => ({
+        bvid: p.bvid,
+        pages: selectedPages[p.bvid] || [],
+        collectionId: selectedCollection,
+      }))
+      .filter((item) => item.pages.length > 0)
+
+    if (items.length === 0) {
+      alert('请至少选择一个分P')
+      return
+    }
+
     setIsCollecting(true)
     setShowResults(false)
 
-    // 模拟收录
-    await new Promise((r) => setTimeout(r, 1500))
+    try {
+      const res = await fetch('/api/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      })
+      const data = await res.json()
 
-    const mockResults: CollectResult[] = previews.map((p) => ({
-      bvid: p.bvid,
-      success: Math.random() > 0.2,
-      title: p.title,
-      reason: '视频不存在或已被下架',
-    }))
+      if (!res.ok) {
+        alert(data.error || '收录请求失败')
+        setIsCollecting(false)
+        return
+      }
 
-    setResults(mockResults)
-    setShowResults(true)
+      // 把 title 补上
+      const resultsWithTitle = data.results.map((r: CollectResult) => {
+        const preview = previews.find((p) => p.bvid === r.bvid)
+        return { ...r, title: preview?.title || r.bvid }
+      })
+
+      setResults(resultsWithTitle)
+      setShowResults(true)
+    } catch {
+      alert('网络错误，请稍后重试')
+    }
+
     setIsCollecting(false)
   }
 
-  // 格式化时长
-  const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60)
-    const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, '0')}`
-  }
-
-  // 模拟收录历史
-  const recentHistory = [
-    { id: 1, title: '【洛天依】千年食谱颂', bvid: 'BV1xx411c7mD', time: '2 小时前' },
-    { id: 2, title: '周杰伦 - 晴天 (翻唱)', bvid: 'BV2xx411c7mE', time: '昨天' },
-    { id: 3, title: '【纯音乐】深夜钢琴曲', bvid: 'BV3xx411c7mF', time: '3 天前' },
-  ]
+  // 计算已选分P总数
+  const totalSelectedPages = Object.values(selectedPages).reduce(
+    (sum, pages) => sum + pages.length,
+    0
+  )
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
@@ -142,7 +211,7 @@ export default function CollectPage() {
         <textarea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={'请输入 BV 号，多个用换行或逗号分隔\n例如：\nBV1xx411c7mD\nBV2xx411c7mE'}
+          placeholder={'请输入 BV 号，多个用换行或逗号分隔\n例如：\nBV1GJ411x7h7\nBV1xx411c7mD'}
           rows={5}
           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all resize-none"
         />
@@ -175,6 +244,17 @@ export default function CollectPage() {
             </span>
           )}
         </div>
+
+        {/* 解析错误提示 */}
+        {Object.keys(parseErrors).length > 0 && (
+          <div className="mt-3 space-y-1">
+            {Object.entries(parseErrors).map(([bvid, error]) => (
+              <p key={bvid} className="text-xs text-red-500">
+                {bvid}：{error}
+              </p>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* 预览区 */}
@@ -190,9 +270,9 @@ export default function CollectPage() {
                 onChange={(e) => setSelectedCollection(Number(e.target.value))}
                 className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55]"
               >
-                {mockCollections.map((c) => (
+                {collections.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.name} ({c.count})
                   </option>
                 ))}
               </select>
@@ -212,6 +292,11 @@ export default function CollectPage() {
                       src={preview.cover}
                       alt={preview.title}
                       className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
                   ) : (
                     <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -259,10 +344,13 @@ export default function CollectPage() {
           </div>
 
           {/* 收录按钮 */}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex items-center justify-between">
+            <span className="text-sm text-gray-500">
+              已选 {totalSelectedPages} 个分P
+            </span>
             <button
               onClick={handleCollect}
-              disabled={isCollecting}
+              disabled={isCollecting || totalSelectedPages === 0 || !selectedCollection}
               className="flex items-center gap-2 px-6 py-2.5 bg-[#fe2c55] hover:bg-[#e8264d] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
             >
               {isCollecting ? (
@@ -278,7 +366,7 @@ export default function CollectPage() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
-                  开始收录
+                  开始收录 ({totalSelectedPages})
                 </>
               )}
             </button>
@@ -312,6 +400,9 @@ export default function CollectPage() {
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${result.success ? 'text-green-800' : 'text-red-800'}`}>
                     {result.title || result.bvid}
+                    {result.pageIndex > 1 && (
+                      <span className="text-xs font-normal ml-1">P{result.pageIndex}</span>
+                    )}
                   </p>
                   {!result.success && result.reason && (
                     <p className="text-xs text-red-600 mt-0.5">{result.reason}</p>
@@ -326,30 +417,6 @@ export default function CollectPage() {
           </div>
         </section>
       )}
-
-      {/* 最近收录 */}
-      <section>
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">最近收录</h2>
-        <div className="bg-gray-50 rounded-lg border border-gray-100 divide-y divide-gray-100">
-          {recentHistory.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-4 px-4 py-3 hover:bg-gray-100/50 transition-colors"
-            >
-              <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                <p className="text-xs text-gray-500">{item.bvid}</p>
-              </div>
-              <span className="text-xs text-gray-400 shrink-0">{item.time}</span>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   )
 }
