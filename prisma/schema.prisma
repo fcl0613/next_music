@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// Music - 音乐表
+// ============================================================
+
+model Music {
+  id            BigInt    @id @default(autoincrement())
+  bvid          String    @db.VarChar(20)
+  aid           BigInt?
+  cid           BigInt
+  pageIndex     Int       @default(1) @map("page_index")
+  pageName      String?   @db.VarChar(255) @map("page_name")
+  title         String    @db.VarChar(500)
+  originalTitle String?   @db.VarChar(500) @map("original_title")
+  artist        String?   @db.VarChar(255)
+  coverUrl      String?   @db.VarChar(500) @map("cover_url")
+  duration      Int       @default(0)
+  audioUrl      String?   @db.Text @map("audio_url")       // 播放时缓存，收录时为空
+  audioQuality  Int?      @map("audio_quality")            // 播放时缓存
+  audioExpire   DateTime? @map("audio_expire")             // 播放时缓存，2小时过期
+  status        String    @default("active") @db.VarChar(20)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  collectionItems CollectionItem[]
+  tags            MusicTag[]
+
+  @@unique([bvid, pageIndex])
+  @@index([title])
+  @@index([artist])
+  @@index([status])
+  @@map("music")
+}
+
+// ============================================================
+// Collection - 歌单表
+// ============================================================
+
+model Collection {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  coverUrl    String?  @db.VarChar(500) @map("cover_url")
+  isDefault   Boolean  @default(false) @map("is_default")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items CollectionItem[]
+
+  @@map("collection")
+}
+
+// ============================================================
+// CollectionItem - 歌单音乐关联表
+// ============================================================
+
+model CollectionItem {
+  id           BigInt   @id @default(autoincrement())
+  collectionId BigInt   @map("collection_id")
+  musicId      BigInt   @map("music_id")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  music      Music      @relation(fields: [musicId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, musicId])
+  @@index([musicId])
+  @@map("collection_item")
+}
+
+// ============================================================
+// Tag - 标签表
+// ============================================================
+
+model Tag {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  color     String?  @db.VarChar(7)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  musics MusicTag[]
+
+  @@map("tag")
+}
+
+// ============================================================
+// MusicTag - 音乐标签关联表
+// ============================================================
+
+model MusicTag {
+  id      BigInt @id @default(autoincrement())
+  musicId BigInt @map("music_id")
+  tagId   BigInt @map("tag_id")
+
+  music Music @relation(fields: [musicId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([musicId, tagId])
+  @@map("music_tag")
+}
