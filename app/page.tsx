@@ -77,14 +77,11 @@ function HomePageContent() {
 
     try {
       if (collectionId === null) {
-        // 全部音乐 — 获取所有歌单的音乐（取默认歌单）
-        const defaultCol = collections.find((c) => c.isDefault)
-        if (defaultCol) {
-          const res = await fetch(`/api/collections/${defaultCol.id}/music?pageSize=200`)
-          const data = await res.json()
-          if (data.music) {
-            setMusicList(data.music)
-          }
+        // 全部音乐 — 获取所有音乐
+        const res = await fetch('/api/music?pageSize=200')
+        const data = await res.json()
+        if (data.music) {
+          setMusicList(data.music)
         }
       } else {
         const res = await fetch(`/api/collections/${collectionId}/music?pageSize=200`)
@@ -98,7 +95,7 @@ function HomePageContent() {
     }
 
     setLoadingMusic(false)
-  }, [collections])
+  }, [])
 
   // 歌单列表加载完成后或切换歌单时加载音乐
   useEffect(() => {
