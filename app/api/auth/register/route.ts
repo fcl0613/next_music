@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { signToken, getAuthCookieOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,10 +39,22 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({
+    const token = await signToken({
       id: Number(user.id),
       username: user.username,
     })
+
+    const response = NextResponse.json({
+      id: Number(user.id),
+      username: user.username,
+    })
+
+    response.cookies.set({
+      ...getAuthCookieOptions(),
+      value: token,
+    })
+
+    return response
   } catch (err) {
     console.error('Register error:', err)
     return NextResponse.json({ error: '服务器错误，请稍后重试' }, { status: 500 })

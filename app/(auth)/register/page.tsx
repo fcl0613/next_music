@@ -59,8 +59,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="flex items-center justify-center px-4">
+      <div className="w-full min-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
@@ -78,7 +78,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Form */}
-        <div className="bg-gray-50 rounded-2xl border border-gray-100 p-8">
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 shadow-sm w-full max-w-lg">
           <h1 className="text-xl font-bold text-gray-900 mb-2">注册</h1>
           <p className="text-sm text-gray-500 mb-6">创建新账号，开始使用</p>
 
@@ -91,7 +91,7 @@ export default function RegisterPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="3-20 个字符"
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
                 required
               />
             </div>
@@ -104,7 +104,7 @@ export default function RegisterPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="至少 6 个字符"
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
                 required
               />
             </div>
@@ -117,7 +117,7 @@ export default function RegisterPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="再次输入密码"
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
                 required
               />
             </div>

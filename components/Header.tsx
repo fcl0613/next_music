@@ -58,9 +58,13 @@ export default function Header() {
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">{user?.username}</span>
               <button
-                onClick={() => {
-                  logout()
-                  router.push('/')
+                onClick={async () => {
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST' })
+                  } finally {
+                    logout()
+                    router.push('/')
+                  }
                 }}
                 className="text-sm text-gray-500 hover:text-gray-700"
               >
