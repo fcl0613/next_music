@@ -31,9 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cookie = process.env.BILIBILI_SESSDATA
-      ? `SESSDATA=${process.env.BILIBILI_SESSDATA}`
-      : undefined;
+    const cookie = request.headers.get("X-Bili-Cookie") || undefined;
 
     const allResults: CollectResult[] = [];
 
