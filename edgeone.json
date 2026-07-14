@@ -1,0 +1,8 @@
+{
+  "cloudFunctions": {
+    "nodejs": {
+      "includeFiles": ["node_modules/.prisma/client/**", "prisma/*.schema"],
+      "externalNodeModules": ["@prisma/client", "prisma"]
+    }
+  }
+}
