@@ -28,6 +28,14 @@ export default function SettingsPage() {
   const [defaultQuality, setDefaultQuality] = useState(30280)
   const [defaultPlayMode, setDefaultPlayMode] = useState<'list' | 'single' | 'random'>('list')
 
+  // 修改密码
+  const [showPassword, setShowPassword] = useState(false)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changing, setChanging] = useState(false)
+  const [changeResult, setChangeResult] = useState<{ success: boolean; message: string } | null>(null)
+
   // 数据管理
   const [exporting, setExporting] = useState(false)
   const [clearingCache, setClearingCache] = useState(false)
@@ -84,6 +92,49 @@ export default function SettingsPage() {
     }
 
     setTesting(false)
+  }
+
+  // 修改密码
+  const handleChangePassword = async () => {
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setChangeResult({ success: false, message: '请填写所有字段' })
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setChangeResult({ success: false, message: '新密码长度至少为 6 个字符' })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setChangeResult({ success: false, message: '两次输入的新密码不一致' })
+      return
+    }
+
+    setChanging(true)
+    setChangeResult(null)
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        setChangeResult({ success: true, message: '密码修改成功' })
+        setOldPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        setChangeResult({ success: false, message: data.error || '修改失败' })
+      }
+    } catch {
+      setChangeResult({ success: false, message: '网络错误，请稍后重试' })
+    }
+
+    setChanging(false)
   }
 
   // 导出数据
@@ -223,6 +274,110 @@ export default function SettingsPage() {
                     </svg>
                   )}
                   {testResult.message}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 修改密码 */}
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+          <h2 className="text-base font-semibold text-gray-900">修改密码</h2>
+        </div>
+
+        <div className="p-6 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="space-y-4">
+            {/* 原密码 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                原密码
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="输入原密码"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+              />
+            </div>
+
+            {/* 新密码 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                新密码
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="输入新密码（至少 6 位）"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+              />
+            </div>
+
+            {/* 确认新密码 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                确认新密码
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="再次输入新密码"
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#fe2c55]/20 focus:border-[#fe2c55] transition-all"
+              />
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={handleChangePassword}
+                disabled={changing}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white font-medium rounded-lg transition-colors"
+              >
+                {changing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    修改中...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    修改密码
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowPassword(!showPassword)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                {showPassword ? '隐藏密码' : '显示密码'}
+              </button>
+
+              {changeResult && (
+                <div className={`flex items-center gap-2 text-sm ${changeResult.success ? 'text-green-600' : 'text-red-500'}`}>
+                  {changeResult.success ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  {changeResult.message}
                 </div>
               )}
             </div>
