@@ -1,8 +1,1 @@
-{
-  "cloudFunctions": {
-    "nodejs": {
-      "includeFiles": ["node_modules/.prisma/client/**", "prisma/*.schema"],
-      "externalNodeModules": ["@prisma/client", "prisma"]
-    }
-  }
-}
+{"cloudFunctions": {"nodejs": {"includeFiles": ["node_modules/.prisma/client/**", "prisma/*.schema", "generated/**", "node_modules/@prisma/**", "node_modules/pg/**", "node_modules/bcryptjs/**"], "externalNodeModules": ["@prisma/client", "@prisma/adapter-pg", "prisma", "pg", "bcryptjs"]}}}
